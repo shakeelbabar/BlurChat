@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "SecureWhatsapp – Privacy for WhatsApp Web",
+  "short_name": "SecureWhatsapp",
+  "version": "1.1.0",
+  "description": "Choose per chat what to blur on WhatsApp Web: profile picture, name, last message, messages and media.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://web.whatsapp.com/*"],
+  "background": { "service_worker": "src/background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["src/defaults.js", "src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "SecureWhatsapp",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "commands": {
+    "toggle-privacy": {
+      "suggested_key": { "default": "Alt+Shift+X", "mac": "Alt+Shift+X" },
+      "description": "Choose per chat what to blur on WhatsApp Web: profile picture, name, last message, messages and media."
+    },
+    "toggle-lock": {
+      "suggested_key": { "default": "Alt+Shift+L", "mac": "Alt+Shift+L" },
+      "description": "Choose per chat what to blur on WhatsApp Web: profile picture, name, last message, messages and media."
+    }
+  }
+}

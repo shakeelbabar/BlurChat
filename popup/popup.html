@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SecureWhatsapp</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" alt="" width="28" height="28" />
+    <div class="title">
+      <strong>SecureWhatsapp</strong>
+      <span id="status">Privacy for WhatsApp Web</span>
+    </div>
+    <label class="switch big" title="Turn all blurring on/off (Alt+Shift+X)">
+      <input type="checkbox" id="enabled" aria-label="Blurring on/off" />
+      <span></span>
+    </label>
+  </header>
+
+  <main id="options">
+    <section id="currentSection" hidden>
+      <h2>This chat <span id="currentBadge" class="badge"></span></h2>
+      <div class="chatname" id="currentName"></div>
+      <div id="currentRows"></div>
+      <button id="currentReset" class="link" hidden>Use default for this chat</button>
+    </section>
+
+    <section>
+      <h2>Default for all other chats</h2>
+      <div id="defaultRows"></div>
+    </section>
+
+    <section>
+      <h2>Chats with custom blur <span id="customCount" class="count"></span></h2>
+      <p class="note" id="customEmpty">None yet. In WhatsApp, hover a chat and click the green shield on its picture (or <kbd>Option</kbd>/<kbd>Alt</kbd>+click the chat).</p>
+      <ul id="customList"></ul>
+    </section>
+
+    <section>
+      <h2>More</h2>
+      <label class="row"><span>Blur the text I'm typing</span><span class="switch"><input type="checkbox" id="blurInput" /><span></span></span></label>
+      <label class="row"><span>Reveal on mouse hover</span><span class="switch"><input type="checkbox" id="revealOnHover" /><span></span></span></label>
+      <label class="row"><span>Hide when I switch away</span><span class="switch"><input type="checkbox" id="lockOnFocusLoss" /><span></span></span></label>
+      <div class="row slider">
+        <span>Blur strength</span>
+        <input type="range" id="blurAmount" min="2" max="20" step="1" />
+        <output id="blurAmountValue"></output>
+      </div>
+    </section>
+
+    <section id="lockSection">
+      <h2>Privacy screen</h2>
+      <div class="row pin" id="currentPinRow" hidden>
+        <input type="password" id="currentPin" inputmode="numeric" placeholder="Current PIN" maxlength="12" aria-label="Current PIN" />
+      </div>
+      <div class="row pin">
+        <input type="password" id="pin" inputmode="numeric" placeholder="Set a PIN (optional)" maxlength="12" />
+        <button id="savePin">Save</button>
+        <button id="clearPin" class="ghost" hidden>Remove</button>
+      </div>
+      <p class="note" id="pinNote">No PIN — click to unlock.</p>
+      <button id="lockNow" class="primary">Hide WhatsApp now</button>
+    </section>
+  </main>
+
+  <footer>
+    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> blur on/off · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> hide</span>
+    <a href="#" id="shortcuts">Change</a>
+  </footer>
+
+  <script src="../src/defaults.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

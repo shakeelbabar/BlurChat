@@ -1,0 +1,58 @@
+/* SecureWhatsapp – blur rules. Classes/attributes are added by content.js. */
+:root { --sw-blur: 8px; }
+
+.sw-name, .sw-preview, .sw-avatar, .sw-msg-text, .sw-media, .sw-input { transition: filter 0.15s ease; }
+
+/* Chat list – per chat */
+html.sw-on .sw-row[data-sw-avatar]  .sw-avatar,
+html.sw-on .sw-row[data-sw-name]    .sw-name,
+html.sw-on .sw-row[data-sw-preview] .sw-preview,
+/* Open conversation – rule of the open chat */
+html.sw-on #main[data-sw-avatar]   .sw-avatar,
+html.sw-on #main[data-sw-name]     .sw-name,
+html.sw-on #main[data-sw-messages] .sw-msg-text,
+html.sw-on #main[data-sw-media]    .sw-media,
+/* Typing box – global */
+html.sw-on.sw-f-input .sw-input {
+  filter: blur(var(--sw-blur)) !important;
+}
+
+/* Reveal on hover */
+html.sw-on.sw-hover .sw-row:hover :is(.sw-avatar, .sw-name, .sw-preview),
+html.sw-on.sw-hover #main .sw-header:hover :is(.sw-avatar, .sw-name),
+html.sw-on.sw-hover #main .sw-msg:hover :is(.sw-msg-text, .sw-media, .sw-avatar, .sw-name),
+html.sw-on.sw-hover #main :is(.sw-msg-text, .sw-media, .sw-avatar):hover,
+html.sw-on.sw-hover #main .sw-footer:hover .sw-input,
+html.sw-on.sw-hover #main .sw-input:focus {
+  filter: none !important;
+}
+
+/* ---------- privacy screen ---------- */
+html.sw-locked #app { filter: blur(24px) !important; pointer-events: none !important; }
+#sw-lock {
+  position: fixed; inset: 0; z-index: 2147483647;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(11, 20, 26, 0.92);
+  backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  color: #e9edef; cursor: pointer;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  animation: sw-fade 0.15s ease;
+}
+#sw-lock .sw-lock-card { text-align: center; max-width: 340px; padding: 24px; }
+#sw-lock .sw-lock-icon { color: #25d366; margin-bottom: 8px; }
+#sw-lock h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; color: #fff; }
+#sw-lock p { margin: 6px 0; color: #aebac1; }
+#sw-lock .sw-lock-hint { font-size: 12px; margin-top: 18px; opacity: 0.7; }
+#sw-lock kbd {
+  font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+}
+#sw-lock .sw-lock-form { display: flex; gap: 8px; margin-top: 14px; cursor: default; }
+#sw-lock input {
+  flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a3942;
+  background: #202c33; color: #e9edef; font-size: 16px; letter-spacing: 4px; outline: none;
+}
+#sw-lock input:focus { border-color: #25d366; }
+#sw-lock button { padding: 10px 16px; border: 0; border-radius: 8px; background: #25d366; color: #0b141a; font-weight: 600; cursor: pointer; }
+#sw-lock .sw-lock-error { color: #f15c6d; min-height: 1.5em; }
+@keyframes sw-fade { from { opacity: 0; } to { opacity: 1; } }
