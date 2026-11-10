@@ -1,4 +1,4 @@
-# SecureWhatsapp
+# BlurChat
 
 A Chrome extension that keeps WhatsApp Web private when people can see your screen.
 
@@ -26,7 +26,7 @@ Change them at `chrome://extensions/shortcuts`.
 ## Install (developer mode)
 1. Open `chrome://extensions` (also works in Edge, Brave, Arc: `edge://extensions`, etc.)
 2. Turn on **Developer mode** (top right)
-3. Click **Load unpacked** and pick this `SecureWhatsapp` folder
+3. Click **Load unpacked** and pick this `BlurChat` folder
 4. Reload any open WhatsApp Web tab
 5. Pin the extension and click its icon for settings
 
@@ -55,6 +55,6 @@ button on the extension in `chrome://extensions` and reload WhatsApp Web.
 ## Forgot your PIN?
 The privacy screen stays up through page refreshes, and the PIN can't be changed without the current one.
 To recover:
-1. Open `chrome://extensions` and click **Remove** on SecureWhatsapp (this erases its settings, including the PIN and your per-chat rules).
+1. Open `chrome://extensions` and click **Remove** on BlurChat (this erases its settings, including the PIN and your per-chat rules).
 2. Click **Load unpacked** and pick this folder again.
 3. Refresh WhatsApp Web, then set your per-chat rules and a new PIN.

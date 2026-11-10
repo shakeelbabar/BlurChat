@@ -1,4 +1,4 @@
-/* SecureWhatsapp – content script for web.whatsapp.com
+/* BlurChat – content script for web.whatsapp.com
  *
  * WhatsApp Web's class names are obfuscated and change often, so we find
  * things through stable anchors (#pane-side, #main, header/footer, role and
@@ -21,6 +21,17 @@
   };
 
   const root = document.documentElement;
+
+  // When the extension is installed/reloaded it injects itself into open
+  // WhatsApp tabs. The newest copy wins; older copies switch themselves off.
+  const INSTANCE = Math.random().toString(36).slice(2);
+  root.dataset.blurchat = INSTANCE;
+  document.getElementById("sw-ui")?.remove();
+  document.getElementById("sw-lock")?.remove();
+  const alive = () => root.dataset.blurchat === INSTANCE && !!chrome.runtime?.id;
+  const on = (target, type, fn, opts) =>
+    target.addEventListener(type, (e) => alive() && fn(e), opts);
+
   let settings = { ...SW_DEFAULTS };
   let chatRules = {};
   let currentChat = null; // { key, label } of the open conversation
@@ -65,33 +76,101 @@
   }
 
   // ---------- chat list ----------
-  function rowNameEl(row) {
-    return row.querySelector("span[title]") || row.querySelector('span[dir="auto"]');
+  // Top-level text pieces of a row (not nested inside another piece).
+  function textPieces(row) {
+    return Array.from(row.querySelectorAll("span[title], span[dir]")).filter((el) => {
+      const outer = el.parentElement.closest("span[title], span[dir]");
+      return !outer || !row.contains(outer);
+    });
   }
+
+  // Groups text pieces into visual lines, top to bottom.
+  function linesOf(pieces) {
+    const items = pieces
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter((i) => i.r.height > 0)
+      .sort((a, b) => a.r.top - b.r.top);
+    const lines = [];
+    for (const i of items) {
+      const last = lines[lines.length - 1];
+      if (last && Math.abs(i.r.top - last.top) <= 6) last.els.push(i.el);
+      else lines.push({ top: i.r.top, els: [i.el] });
+    }
+    return lines.map((l) => l.els);
+  }
+
+  const firstLabel = (els) => {
+    const el = els.find((e) => e.hasAttribute("title")) || els[0];
+    return el ? labelOf(el) : "";
+  };
+
+  /* Returns { chat, nameEls, previewEls } for a chat-list row.
+   * Normal row:          line 1 = name,      line 2 = last message
+   * Group in community:  line 1 = community, line 2 = group name, line 3 = last message
+   *   (or community and group side by side on line 1) */
+  function analyzeRow(row) {
+    const pieces = textPieces(row);
+    if (!pieces.length) return null;
+    const lines = linesOf(pieces);
+    let nameEls, previewEls, label;
+
+    if (lines.length >= 3) {
+      nameEls = [...lines[0], ...lines[1]];
+      previewEls = lines.slice(2).flat();
+      const community = firstLabel(lines[0]);
+      const group = firstLabel(lines[1]);
+      label = group && community && group !== community ? `${group} (${community})` : group || community;
+    } else if (lines.length && lines[0].length >= 2 && lines[0].every((e) => e.hasAttribute("title"))) {
+      nameEls = lines[0];
+      previewEls = lines.slice(1).flat();
+      const community = labelOf(lines[0][0]);
+      const group = labelOf(lines[0][lines[0].length - 1]);
+      label = `${group} (${community})`;
+    } else if (lines.length) {
+      nameEls = lines[0];
+      previewEls = lines.slice(1).flat();
+      label = firstLabel(lines[0]);
+    } else {
+      // Not laid out yet (hidden): fall back to DOM order.
+      const nameEl = row.querySelector("span[title]") || pieces[0];
+      nameEls = [nameEl];
+      previewEls = pieces.filter((p) => p !== nameEl && !nameEl.contains(p) && !p.contains(nameEl));
+      label = labelOf(nameEl);
+    }
+    const chat = chatFrom(label);
+    return chat ? { chat, nameEls, previewEls } : null;
+  }
+
   function chatFromRow(row) {
-    const el = rowNameEl(row);
-    return el ? chatFrom(labelOf(el)) : null;
+    return analyzeRow(row)?.chat || null;
   }
+
+  function setRole(el, cls) {
+    const other = cls === "sw-name" ? "sw-preview" : "sw-name";
+    if (el.classList.contains(other)) el.classList.remove(other); // rows get recycled by WhatsApp
+    tag(el, cls);
+  }
+
+  let selectedChat = null;              // chat of the highlighted row in the list
+  const chatByHeader = new Map();       // header name key -> chat (for community groups)
 
   function tagChatList() {
     const list = document.querySelector(SELECTORS.chatList);
     if (!list) return;
+    selectedChat = null;
     list.querySelectorAll(SELECTORS.chatRow).forEach((row) => {
-      const nameEl = rowNameEl(row);
-      if (!nameEl) return;
+      const info = analyzeRow(row);
+      if (!info) return;
       tag(row, "sw-row");
       row.querySelectorAll("img").forEach((img) => {
         if (!isEmoji(img) && !img.closest(".sw-name, .sw-preview")) tag(img, "sw-avatar");
       });
-      tag(nameEl, "sw-name");
-      row.querySelectorAll("span[title], span[dir]").forEach((s) => {
-        if (s === nameEl || nameEl.contains(s) || s.contains(nameEl)) return;
-        if (!s.parentElement.closest(".sw-preview")) tag(s, "sw-preview");
-      });
-      const chat = chatFrom(labelOf(nameEl));
-      if (chat) {
-        setRuleAttrs(row, ruleFor(chat.key));
-        row.toggleAttribute("data-sw-custom", !!chatRules[chat.key]);
+      info.nameEls.forEach((el) => setRole(el, "sw-name"));
+      info.previewEls.forEach((el) => setRole(el, "sw-preview"));
+      setRuleAttrs(row, ruleFor(info.chat.key));
+      row.toggleAttribute("data-sw-custom", !!chatRules[info.chat.key]);
+      if (row.matches('[aria-selected="true"]') || row.querySelector('[aria-selected="true"]')) {
+        selectedChat = info.chat;
       }
     });
   }
@@ -114,7 +193,9 @@
       });
       const spans = Array.from(header.querySelectorAll("span[dir], span[title]"));
       if (spans[0]) {
-        currentChat = chatFrom(labelOf(spans[0])) || currentChat;
+        const headerChat = chatFrom(labelOf(spans[0]));
+        if (selectedChat && headerChat) chatByHeader.set(headerChat.key, selectedChat);
+        currentChat = selectedChat || (headerChat && chatByHeader.get(headerChat.key)) || headerChat || currentChat;
         // Name plus the subtitle (members list / last seen) follow the Name option.
         spans.forEach((s) => {
           if (!s.parentElement.closest(".sw-name")) tag(s, "sw-name");
@@ -152,21 +233,24 @@
       tagChatList();
       tagConversation();
     } catch (e) {
-      console.debug("[SecureWhatsapp] scan error", e);
+      console.debug("[BlurChat] scan error", e);
     }
   }
 
+  // Runs before the browser paints, so new chats/messages never show unblurred.
   let scheduled = false;
   function scheduleScan() {
+    if (!alive()) return observer.disconnect();
     if (scheduled) return;
     scheduled = true;
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       scheduled = false;
       scan();
-    }, 120);
+    });
   }
-  new MutationObserver(scheduleScan).observe(root, { childList: true, subtree: true });
-  document.addEventListener("DOMContentLoaded", scan);
+  const observer = new MutationObserver(scheduleScan);
+  observer.observe(root, { childList: true, subtree: true });
+  on(document, "DOMContentLoaded", scan);
 
   // ---------- per-chat button + panel (in a shadow root so WhatsApp's CSS can't touch it) ----------
   const SHIELD =
@@ -210,7 +294,7 @@
     host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483646;";
     shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `<style>${UI_CSS}</style>
-      <button class="btn" hidden title="SecureWhatsapp: blur settings for this chat" aria-label="Blur settings for this chat">${SHIELD}</button>
+      <button class="btn" hidden title="BlurChat: blur settings for this chat" aria-label="Blur settings for this chat">${SHIELD}</button>
       <div class="panel" hidden role="dialog" aria-label="Blur settings for this chat"></div>`;
     btn = shadow.querySelector(".btn");
     panel = shadow.querySelector(".panel");
@@ -270,7 +354,8 @@
     return null;
   }
 
-  document.addEventListener(
+  on(
+    document,
     "mouseover",
     (e) => {
       if (!settings.enabled || locked) return;
@@ -285,7 +370,7 @@
     true
   );
 
-  document.addEventListener("scroll", () => host && panel.hidden && (btn.hidden = true), true);
+  on(document, "scroll", () => host && panel.hidden && (btn.hidden = true), true);
 
   // Alt/Option + click on a chat (or the chat header) opens the panel directly.
   function altClick(e) {
@@ -299,11 +384,12 @@
       openPanel(hit.chat, { left: e.clientX, right: e.clientX, top: e.clientY });
     }
   }
-  document.addEventListener("mousedown", altClick, true);
-  document.addEventListener("click", altClick, true);
+  on(document, "mousedown", altClick, true);
+  on(document, "click", altClick, true);
 
   // Click outside the panel closes it.
-  document.addEventListener(
+  on(
+    document,
     "mousedown",
     (e) => {
       if (panelChat && !e.composedPath().includes(host)) closePanel();
@@ -387,6 +473,7 @@
   let lockEl = null;
   let popupOpenedAt = 0;
 
+  // The "securewhatsapp:" salt is kept from the old name so existing PINs keep working.
   async function sha256(text) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("securewhatsapp:" + text));
     return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -433,6 +520,7 @@
   }
 
   function onLockedKey(e) {
+    if (!alive()) return window.removeEventListener("keydown", onLockedKey, true);
     if (locked && !settings.pinHash && ["Enter", "Escape", " "].includes(e.key)) {
       e.preventDefault();
       unlock();
@@ -466,17 +554,18 @@
   }
 
   // Switching away locks – but not when you just opened the extension popup.
-  window.addEventListener("blur", () => {
+  on(window, "blur", () => {
     if (!settings.lockOnFocusLoss) return;
     setTimeout(() => {
       if (Date.now() - popupOpenedAt > 1500 && !document.hasFocus()) lock();
     }, 400);
   });
-  document.addEventListener("visibilitychange", () => {
+  on(document, "visibilitychange", () => {
     if (document.hidden && settings.lockOnFocusLoss) lock();
   });
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!alive()) return;
     switch (msg?.type) {
       case "SW_TOGGLE_LOCK":
         if (!locked) lock();
@@ -502,6 +591,7 @@
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (!alive()) return;
     if (area === "sync") {
       for (const [k, v] of Object.entries(changes)) settings[k] = v.newValue;
       settings.defaultRule = { ...SW_DEFAULT_RULE, ...(settings.defaultRule || {}) };

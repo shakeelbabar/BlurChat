@@ -1,4 +1,4 @@
-/* SecureWhatsapp – blur rules. Classes/attributes are added by content.js. */
+/* BlurChat – blur rules. Classes/attributes are added by content.js. */
 :root { --sw-blur: 8px; }
 
 .sw-name, .sw-preview, .sw-avatar, .sw-msg-text, .sw-media, .sw-input { transition: filter 0.15s ease; }

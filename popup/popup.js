@@ -7,7 +7,7 @@ let current = null; // { key, label }
 const expanded = new Set();
 
 async function sha256(text) {
-  // Must match src/content.js
+  // Must match src/content.js (salt kept from the old name so existing PINs keep working)
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("securewhatsapp:" + text));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
